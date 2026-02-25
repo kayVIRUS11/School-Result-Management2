@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -13,16 +14,17 @@ export async function GET(req: NextRequest) {
   const subjectId = searchParams.get("subjectId") ?? undefined;
   const termId = searchParams.get("termId") ?? undefined;
   const sessionId = searchParams.get("sessionId") ?? undefined;
-  const status = searchParams.get("status") ?? undefined;
+  const status = searchParams.get("status") as Prisma.EnumResultStatusFilter | undefined;
+
+  const where: Prisma.ResultWhereInput = {};
+  if (classId) where.classId = classId;
+  if (subjectId) where.subjectId = subjectId;
+  if (termId) where.termId = termId;
+  if (sessionId) where.sessionId = sessionId;
+  if (status) where.status = status;
 
   const results = await prisma.result.findMany({
-    where: {
-      ...(classId && { classId }),
-      ...(subjectId && { subjectId }),
-      ...(termId && { termId }),
-      ...(sessionId && { sessionId }),
-      ...(status && { status }),
-    },
+    where,
     include: {
       student: { include: { user: true } },
       subject: true,

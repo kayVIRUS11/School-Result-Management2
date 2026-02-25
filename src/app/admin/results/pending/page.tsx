@@ -13,8 +13,9 @@ interface Result {
   total: number | null;
   grade: string | null;
   status: string;
-  student: { regNumber: string; user: { firstName: string; lastName: string }; classroom: { name: string } };
+  student: { user: { firstName: string; lastName: string } };
   subject: { name: string };
+  classroom: { name: string };
   term: { name: string };
   staff: { user: { firstName: string; lastName: string } } | null;
 }
@@ -25,7 +26,7 @@ export default function PendingResultsPage() {
   const [loading, setLoading] = useState(false);
 
   const load = () => {
-    fetch("/api/admin/results?status=SUBMITTED")
+    fetch("/api/admin/results/pending")
       .then(r => r.json())
       .then(setResults);
   };
@@ -156,7 +157,7 @@ export default function PendingResultsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.student.user.firstName} {r.student.user.lastName}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.subject.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{r.student.classroom.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{r.classroom.name}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.term.name}</td>
                   <td className="px-4 py-3 text-sm text-center text-gray-700">{r.ca1 ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-center text-gray-700">{r.ca2 ?? "-"}</td>

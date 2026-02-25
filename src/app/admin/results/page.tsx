@@ -18,9 +18,11 @@ interface Result {
   total: number | null;
   grade: string | null;
   status: string;
-  student: { regNumber: string; user: { firstName: string; lastName: string }; classroom: { name: string } };
+  student: { user: { firstName: string; lastName: string } };
   subject: { name: string };
-  term: { name: string; session: { name: string } };
+  classroom: { name: string };
+  term: { name: string };
+  session: { name: string };
   staff: { user: { firstName: string; lastName: string } } | null;
 }
 
@@ -123,9 +125,9 @@ export default function ResultsPage() {
                 <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.student.user.firstName} {r.student.user.lastName}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.subject.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{r.student.classroom.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700">{r.classroom.name}</td>
                   <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.term.name}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.term.session.name}</td>
+                  <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">{r.session.name}</td>
                   <td className="px-4 py-3 text-sm text-center text-gray-700">{r.ca1 ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-center text-gray-700">{r.ca2 ?? "-"}</td>
                   <td className="px-4 py-3 text-sm text-center text-gray-700">{r.ca3 ?? "-"}</td>
