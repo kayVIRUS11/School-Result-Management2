@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,8 @@ import {
   ChevronRight,
   School,
   UserCheck,
+  Menu,
+  X,
 } from "lucide-react";
 
 interface NavItem {
@@ -39,6 +42,7 @@ const adminNav: NavItem[] = [
   { href: "/admin/assignments", label: "Assignments", icon: <UserCheck className="w-5 h-5" /> },
   { href: "/admin/results", label: "Results", icon: <ClipboardList className="w-5 h-5" /> },
   { href: "/admin/results/pending", label: "Pending Results", icon: <ClipboardList className="w-5 h-5" /> },
+  { href: "/admin/change-password", label: "Change Password", icon: <KeyRound className="w-5 h-5" /> },
 ];
 
 const staffNav: NavItem[] = [
@@ -57,12 +61,13 @@ const studentNav: NavItem[] = [
 
 export default function Sidebar({ role, firstName, lastName }: SidebarProps) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const navItems =
     role === "ADMIN" ? adminNav : role === "STAFF" ? staffNav : studentNav;
 
-  return (
+  const sidebarContent = (
     <div className="flex flex-col h-full bg-indigo-900 text-white w-64 min-h-screen">
-      <div className="p-6 border-b border-indigo-800">
+      <div className="p-6 border-b border-indigo-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <GraduationCap className="w-8 h-8 text-indigo-300" />
           <div>
@@ -70,6 +75,12 @@ export default function Sidebar({ role, firstName, lastName }: SidebarProps) {
             <p className="text-xs text-indigo-300">Management System</p>
           </div>
         </div>
+        <button
+          className="md:hidden text-indigo-300 hover:text-white"
+          onClick={() => setMobileOpen(false)}
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -79,6 +90,7 @@ export default function Sidebar({ role, firstName, lastName }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => setMobileOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group ${
                 isActive
                   ? "bg-indigo-700 text-white"
@@ -112,5 +124,34 @@ export default function Sidebar({ role, firstName, lastName }: SidebarProps) {
         </button>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {/* Mobile hamburger button */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-40 p-2 bg-indigo-900 text-white rounded-lg shadow-lg"
+        onClick={() => setMobileOpen(true)}
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/50"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - hidden on mobile unless open */}
+      <div
+        className={`fixed md:static inset-y-0 left-0 z-40 transform transition-transform duration-200 ease-in-out md:transform-none ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        {sidebarContent}
+      </div>
+    </>
   );
 }
