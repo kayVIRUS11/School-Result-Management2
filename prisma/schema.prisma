@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  STUDENT
+}
+
+enum ResultStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role
+  firstName    String
+  lastName     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  student      Student?
+  staff        Staff?
+}
+
+model Student {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regNumber      String    @unique
+  classId        String
+  classroom      ClassRoom @relation(fields: [classId], references: [id])
+  guardianName   String?
+  guardianPhone  String?
+  results        Result[]
+}
+
+model Staff {
+  id             String            @id @default(cuid())
+  userId         String            @unique
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  staffIdNumber  String            @unique
+  assignments    StaffAssignment[]
+  results        Result[]
+}
+
+model ClassRoom {
+  id          String            @id @default(cuid())
+  name        String            @unique
+  level       String
+  students    Student[]
+  classSubjects ClassSubject[]
+  assignments StaffAssignment[]
+  results     Result[]
+}
+
+model Subject {
+  id            String            @id @default(cuid())
+  name          String            @unique
+  code          String            @unique
+  classSubjects ClassSubject[]
+  assignments   StaffAssignment[]
+  results       Result[]
+}
+
+model ClassSubject {
+  id        String    @id @default(cuid())
+  classId   String
+  subjectId String
+  classroom ClassRoom @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject   @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, subjectId])
+}
+
+model AcademicSession {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isCurrent Boolean  @default(false)
+  terms     Term[]
+  results   Result[]
+}
+
+model Term {
+  id        String          @id @default(cuid())
+  name      String
+  sessionId String
+  isCurrent Boolean         @default(false)
+  session   AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  results   Result[]
+}
+
+model StaffAssignment {
+  id        String    @id @default(cuid())
+  staffId   String
+  classId   String
+  subjectId String?
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  classroom ClassRoom @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subject   Subject?  @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@unique([staffId, classId, subjectId])
+}
+
+model GradingScale {
+  id       String @id @default(cuid())
+  minScore Float
+  maxScore Float
+  grade    String
+  remark   String
+}
+
+model Result {
+  id        String          @id @default(cuid())
+  studentId String
+  subjectId String
+  classId   String
+  sessionId String
+  termId    String
+  staffId   String
+  ca1       Float           @default(0)
+  ca2       Float           @default(0)
+  ca3       Float           @default(0)
+  exam      Float           @default(0)
+  total     Float           @default(0)
+  grade     String?
+  remark    String?
+  status    ResultStatus    @default(DRAFT)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  student   Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject         @relation(fields: [subjectId], references: [id])
+  classroom ClassRoom       @relation(fields: [classId], references: [id])
+  session   AcademicSession @relation(fields: [sessionId], references: [id])
+  term      Term            @relation(fields: [termId], references: [id])
+  staff     Staff           @relation(fields: [staffId], references: [id])
+
+  @@unique([studentId, subjectId, termId, sessionId])
+}
