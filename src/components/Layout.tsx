@@ -11,7 +11,7 @@ export default function Layout({ children, role, firstName, lastName }: LayoutPr
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar role={role} firstName={firstName} lastName={lastName} />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto md:ml-0">
         {children}
       </main>
     </div>
