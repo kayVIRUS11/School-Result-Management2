@@ -78,12 +78,23 @@ export async function POST(req: NextRequest) {
 
   const gradingScale = await prisma.gradingScale.findMany({ orderBy: { minScore: "desc" } });
 
+  // Validate that results are being submitted for the currently active term
+  const activeTerm = await prisma.term.findFirst({ where: { isCurrent: true }, include: { session: true } });
+  if (!activeTerm) {
+    return NextResponse.json({ error: "No active term is set. Please contact the administrator." }, { status: 400 });
+  }
+
+  const firstResult = results[0];
+  if (firstResult.termId !== activeTerm.id || firstResult.sessionId !== activeTerm.session.id) {
+    return NextResponse.json({ error: "Results can only be submitted for the current active term." }, { status: 400 });
+  }
+
   const saved = await Promise.all(
     results.map(async (r) => {
-      const ca1 = Math.min(20, Math.max(0, r.ca1 || 0));
-      const ca2 = Math.min(20, Math.max(0, r.ca2 || 0));
-      const ca3 = Math.min(20, Math.max(0, r.ca3 || 0));
-      const exam = Math.min(40, Math.max(0, r.exam || 0));
+      const ca1 = Math.min(10, Math.max(0, r.ca1 || 0));
+      const ca2 = Math.min(10, Math.max(0, r.ca2 || 0));
+      const ca3 = Math.min(10, Math.max(0, r.ca3 || 0));
+      const exam = Math.min(70, Math.max(0, r.exam || 0));
       const total = ca1 + ca2 + ca3 + exam;
       const { grade, remark } = getGrade(total, gradingScale);
 

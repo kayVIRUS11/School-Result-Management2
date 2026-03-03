@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { useEffect, useState, useCallback } from "react";
+import { CheckCircle, XCircle, Clock, Filter } from "lucide-react";
 import { Toaster, toast } from "react-hot-toast";
 
 interface Result {
@@ -20,17 +20,36 @@ interface Result {
   staff: { user: { firstName: string; lastName: string } } | null;
 }
 
+interface ClassRoom { id: string; name: string; }
+interface Subject { id: string; name: string; }
+interface StaffMember { id: string; user: { firstName: string; lastName: string }; }
+
 export default function PendingResultsPage() {
   const [results, setResults] = useState<Result[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
+  const [classes, setClasses] = useState<ClassRoom[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [filters, setFilters] = useState({ classId: "", subjectId: "", staffId: "" });
 
-  const load = () => {
-    fetch("/api/admin/results/pending")
+  useEffect(() => {
+    fetch("/api/admin/classes").then(r => r.json()).then(setClasses);
+    fetch("/api/admin/subjects").then(r => r.json()).then(setSubjects);
+    fetch("/api/admin/staff").then(r => r.json()).then(setStaffList);
+  }, []);
+
+  const load = useCallback(() => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => { if (v) params.set(k, v); });
+    fetch(`/api/admin/results/pending?${params.toString()}`)
       .then(r => r.json())
       .then(setResults);
-  };
-  useEffect(() => { load(); }, []);
+  }, [filters]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const setFilter = (key: string, value: string) => setFilters(f => ({ ...f, [key]: value }));
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
@@ -91,6 +110,28 @@ export default function PendingResultsPage() {
             {results.length} pending
           </span>
         )}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
+        <div className="flex items-center gap-2 mb-3">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <span className="text-sm font-medium text-gray-700">Filters</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <select value={filters.classId} onChange={e => setFilter("classId", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="">All Classes</option>
+            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select value={filters.subjectId} onChange={e => setFilter("subjectId", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="">All Subjects</option>
+            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={filters.staffId} onChange={e => setFilter("staffId", e.target.value)} className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <option value="">All Staff</option>
+            {staffList.map(s => <option key={s.id} value={s.id}>{s.user.firstName} {s.user.lastName}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Bulk Actions Bar */}

@@ -33,6 +33,11 @@ interface GradingScale {
   remark: string;
 }
 
+interface ClassSubject {
+  id: string;
+  subject: { id: string; name: string };
+}
+
 interface ScoreRow {
   studentId: string;
   studentName: string;
@@ -45,10 +50,10 @@ interface ScoreRow {
 
 function calcTotal(row: ScoreRow): number {
   return (
-    Math.min(20, Math.max(0, parseFloat(row.ca1) || 0)) +
-    Math.min(20, Math.max(0, parseFloat(row.ca2) || 0)) +
-    Math.min(20, Math.max(0, parseFloat(row.ca3) || 0)) +
-    Math.min(40, Math.max(0, parseFloat(row.exam) || 0))
+    Math.min(10, Math.max(0, parseFloat(row.ca1) || 0)) +
+    Math.min(10, Math.max(0, parseFloat(row.ca2) || 0)) +
+    Math.min(10, Math.max(0, parseFloat(row.ca3) || 0)) +
+    Math.min(70, Math.max(0, parseFloat(row.exam) || 0))
   );
 }
 
@@ -61,10 +66,11 @@ function calcGrade(total: number, scale: GradingScale[]): string {
 
 export default function EnterResultsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [terms, setTerms] = useState<Term[]>([]);
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
   const [gradingScale, setGradingScale] = useState<GradingScale[]>([]);
   const [selectedAssignment, setSelectedAssignment] = useState<string>("");
-  const [selectedTerm, setSelectedTerm] = useState<string>("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [classSubjects, setClassSubjects] = useState<ClassSubject[]>([]);
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -76,24 +82,26 @@ export default function EnterResultsPage() {
       fetch("/api/staff/grading-scale").then((r) => r.json()),
     ]).then(([a, t, g]) => {
       setAssignments(a);
-      setTerms(t);
       setGradingScale(g);
-      const currentTerm = t.find((term: Term) => term.isCurrent);
-      if (currentTerm) setSelectedTerm(currentTerm.id);
+      const found = t.find((term: Term) => term.isCurrent) ?? null;
+      setCurrentTerm(found);
     });
   }, []);
 
   const loadStudentsAndResults = useCallback(async () => {
-    if (!selectedAssignment || !selectedTerm) return;
+    if (!selectedAssignment || !currentTerm) return;
     const assignment = assignments.find((a) => a.id === selectedAssignment);
     if (!assignment) return;
+
+    const effectiveSubjectId = assignment.subjectId ?? selectedSubjectId;
+    if (!assignment.subjectId && !selectedSubjectId) return;
 
     setLoadingStudents(true);
     try {
       const [studentsData, existingResults] = await Promise.all([
         fetch(`/api/staff/classes/${assignment.classId}/students`).then((r) => r.json()),
         fetch(
-          `/api/staff/results?classId=${assignment.classId}&subjectId=${assignment.subjectId ?? ""}&termId=${selectedTerm}`
+          `/api/staff/results?classId=${assignment.classId}&subjectId=${effectiveSubjectId}&termId=${currentTerm.id}`
         ).then((r) => r.json()),
       ]);
 
@@ -115,15 +123,33 @@ export default function EnterResultsPage() {
     } finally {
       setLoadingStudents(false);
     }
-  }, [selectedAssignment, selectedTerm, assignments]);
+  }, [selectedAssignment, selectedSubjectId, currentTerm, assignments]);
 
   useEffect(() => {
-    if (selectedAssignment && selectedTerm) {
-      loadStudentsAndResults();
+    if (selectedAssignment && currentTerm) {
+      const assignment = assignments.find((a) => a.id === selectedAssignment);
+      if (assignment && !assignment.subjectId) {
+        // Load subjects for this class
+        fetch(`/api/staff/classes/${assignment.classId}/subjects`)
+          .then((r) => r.json())
+          .then(setClassSubjects);
+        setSelectedSubjectId("");
+        setScores([]);
+      } else {
+        setClassSubjects([]);
+        setSelectedSubjectId("");
+        loadStudentsAndResults();
+      }
     } else {
       setScores([]);
     }
-  }, [selectedAssignment, selectedTerm, loadStudentsAndResults]);
+  }, [selectedAssignment, currentTerm, assignments, loadStudentsAndResults]);
+
+  useEffect(() => {
+    if (selectedSubjectId) {
+      loadStudentsAndResults();
+    }
+  }, [selectedSubjectId, loadStudentsAndResults]);
 
   function updateScore(index: number, field: keyof ScoreRow, value: string) {
     setScores((prev) => {
@@ -141,17 +167,19 @@ export default function EnterResultsPage() {
 
   async function handleSave(status: "DRAFT" | "SUBMITTED") {
     const assignment = assignments.find((a) => a.id === selectedAssignment);
-    const term = terms.find((t) => t.id === selectedTerm);
-    if (!assignment || !term) return;
+    if (!assignment || !currentTerm) return;
+
+    const effectiveSubjectId = assignment.subjectId ?? selectedSubjectId;
+    if (!effectiveSubjectId) return;
 
     setSaving(true);
     try {
       const payload = scores.map((row) => ({
         studentId: row.studentId,
-        subjectId: assignment.subjectId,
+        subjectId: effectiveSubjectId,
         classId: assignment.classId,
-        sessionId: term.session.id,
-        termId: selectedTerm,
+        sessionId: currentTerm.session.id,
+        termId: currentTerm.id,
         ca1: parseFloat(row.ca1) || 0,
         ca2: parseFloat(row.ca2) || 0,
         ca3: parseFloat(row.ca3) || 0,
@@ -180,6 +208,22 @@ export default function EnterResultsPage() {
 
   const assignment = assignments.find((a) => a.id === selectedAssignment);
 
+  if (!currentTerm) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <ClipboardList className="w-6 h-6 text-indigo-600" />
+          <h1 className="text-2xl font-bold text-gray-900">Enter Results</h1>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm p-8 text-center">
+          <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-600 font-medium">No active term has been set by the admin.</p>
+          <p className="text-gray-500 text-sm mt-1">Please contact the administrator.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-8">
       <Toaster position="top-right" />
@@ -197,7 +241,7 @@ export default function EnterResultsPage() {
             <select
               value={selectedAssignment}
               onChange={(e) => setSelectedAssignment(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
             >
               <option value="">Select assignment...</option>
               {assignments.map((a) => (
@@ -209,21 +253,30 @@ export default function EnterResultsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Current Term</label>
+            <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700">
+              {currentTerm.name} — {currentTerm.session.name}
+            </div>
+          </div>
+        </div>
+
+        {assignment && !assignment.subjectId && classSubjects.length > 0 && (
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
             <select
-              value={selectedTerm}
-              onChange={(e) => setSelectedTerm(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+              value={selectedSubjectId}
+              onChange={(e) => setSelectedSubjectId(e.target.value)}
+              className="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="">Select term...</option>
-              {terms.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.session.name} — {t.name}
+              <option value="">Select subject...</option>
+              {classSubjects.map((cs) => (
+                <option key={cs.id} value={cs.subject.id}>
+                  {cs.subject.name}
                 </option>
               ))}
             </select>
           </div>
-        </div>
+        )}
       </div>
 
       {loadingStudents && (
@@ -240,10 +293,10 @@ export default function EnterResultsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Student</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Reg No.</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA1 (/20)</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA2 (/20)</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA3 (/20)</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Exam (/40)</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA1 (/10)</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA2 (/10)</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">CA3 (/10)</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Exam (/70)</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Total</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Grade</th>
                 </tr>
@@ -261,11 +314,11 @@ export default function EnterResultsPage() {
                           <input
                             type="number"
                             min={0}
-                            max={20}
+                            max={10}
                             value={row[field]}
                             onChange={(e) => updateScore(i, field, e.target.value)}
-                            onBlur={(e) => updateScore(i, field, clampInput(e.target.value, 20))}
-                            className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:ring-2 focus:ring-indigo-500 mx-auto block"
+                            onBlur={(e) => updateScore(i, field, clampInput(e.target.value, 10))}
+                            className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-900 focus:ring-2 focus:ring-indigo-500 mx-auto block"
                           />
                         </td>
                       ))}
@@ -273,11 +326,11 @@ export default function EnterResultsPage() {
                         <input
                           type="number"
                           min={0}
-                          max={40}
+                          max={70}
                           value={row.exam}
                           onChange={(e) => updateScore(i, "exam", e.target.value)}
-                          onBlur={(e) => updateScore(i, "exam", clampInput(e.target.value, 40))}
-                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:ring-2 focus:ring-indigo-500 mx-auto block"
+                          onBlur={(e) => updateScore(i, "exam", clampInput(e.target.value, 70))}
+                          className="w-16 border border-gray-300 rounded px-2 py-1 text-sm text-center text-gray-900 focus:ring-2 focus:ring-indigo-500 mx-auto block"
                         />
                       </td>
                       <td className="px-4 py-3 text-center text-sm font-semibold text-gray-800">
@@ -298,7 +351,7 @@ export default function EnterResultsPage() {
           <div className="flex gap-3 justify-end">
             <button
               onClick={() => handleSave("DRAFT")}
-              disabled={saving || !assignment?.subjectId}
+              disabled={saving}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
@@ -306,33 +359,27 @@ export default function EnterResultsPage() {
             </button>
             <button
               onClick={() => handleSave("SUBMITTED")}
-              disabled={saving || !assignment?.subjectId}
+              disabled={saving}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
               Submit for Approval
             </button>
           </div>
-
-          {!assignment?.subjectId && (
-            <p className="text-sm text-amber-600 mt-2 text-right">
-              This assignment has no specific subject. Please contact admin to assign a subject.
-            </p>
-          )}
         </>
       )}
 
-      {!loadingStudents && selectedAssignment && selectedTerm && scores.length === 0 && (
+      {!loadingStudents && selectedAssignment && scores.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No students found in this class.</p>
         </div>
       )}
 
-      {!selectedAssignment && !selectedTerm && (
+      {!selectedAssignment && (
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">Select an assignment and term to enter results.</p>
+          <p className="text-gray-500">Select an assignment to enter results.</p>
         </div>
       )}
     </div>

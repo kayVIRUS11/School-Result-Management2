@@ -1,5 +1,5 @@
 // Example prisma.config.ts — update/merge into your existing file
-import { defineConfig } from 'prisma'
+import { defineConfig } from 'prisma/config'
 import path from 'path'
 
 export default defineConfig({
