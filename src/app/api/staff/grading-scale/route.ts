@@ -8,9 +8,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const gradingScale = await prisma.gradingScale.findMany({
-    orderBy: { minScore: "desc" },
-  });
+  try {
+    const gradingScale = await prisma.gradingScale.findMany({
+      orderBy: { minScore: "desc" },
+    });
 
-  return NextResponse.json(gradingScale);
+    return NextResponse.json(gradingScale);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

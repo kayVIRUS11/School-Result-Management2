@@ -8,12 +8,17 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const classSubjects = await prisma.classSubject.findMany({
-    where: { classId: params.id },
-    include: { subject: true },
-  });
+  try {
+    const classSubjects = await prisma.classSubject.findMany({
+      where: { classId: params.id },
+      include: { subject: true },
+    });
 
-  return NextResponse.json(classSubjects);
+    return NextResponse.json(classSubjects);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
@@ -22,13 +27,22 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { subjectIds }: { subjectIds: string[] } = await req.json();
+  try {
+    const { subjectIds }: { subjectIds: string[] } = await req.json();
 
-  await prisma.classSubject.deleteMany({ where: { classId: params.id } });
+    if (!Array.isArray(subjectIds)) {
+      return NextResponse.json({ error: "subjectIds must be an array" }, { status: 400 });
+    }
 
-  await prisma.classSubject.createMany({
-    data: subjectIds.map((subjectId) => ({ classId: params.id, subjectId })),
-  });
+    await prisma.classSubject.deleteMany({ where: { classId: params.id } });
 
-  return NextResponse.json({ success: true });
+    await prisma.classSubject.createMany({
+      data: subjectIds.map((subjectId) => ({ classId: params.id, subjectId })),
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

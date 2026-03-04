@@ -8,21 +8,26 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, isCurrent } = await req.json();
+  try {
+    const { name, isCurrent } = await req.json();
 
-  if (isCurrent) {
-    await prisma.academicSession.updateMany({
-      where: { id: { not: params.id } },
-      data: { isCurrent: false },
+    if (isCurrent) {
+      await prisma.academicSession.updateMany({
+        where: { id: { not: params.id } },
+        data: { isCurrent: false },
+      });
+    }
+
+    const academicSession = await prisma.academicSession.update({
+      where: { id: params.id },
+      data: { name, isCurrent: isCurrent ?? false },
     });
+
+    return NextResponse.json(academicSession);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const academicSession = await prisma.academicSession.update({
-    where: { id: params.id },
-    data: { name, isCurrent: isCurrent ?? false },
-  });
-
-  return NextResponse.json(academicSession);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -31,7 +36,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.academicSession.delete({ where: { id: params.id } });
+  try {
+    await prisma.academicSession.delete({ where: { id: params.id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

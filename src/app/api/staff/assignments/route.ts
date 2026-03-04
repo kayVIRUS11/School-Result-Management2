@@ -8,14 +8,19 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const staff = await prisma.staff.findFirst({ where: { userId: session.user.id } });
-  if (!staff) return NextResponse.json([]);
+  try {
+    const staff = await prisma.staff.findFirst({ where: { userId: session.user.id } });
+    if (!staff) return NextResponse.json([]);
 
-  const assignments = await prisma.staffAssignment.findMany({
-    where: { staffId: staff.id },
-    include: { classroom: true, subject: true },
-    orderBy: { classroom: { name: "asc" } },
-  });
+    const assignments = await prisma.staffAssignment.findMany({
+      where: { staffId: staff.id },
+      include: { classroom: true, subject: true },
+      orderBy: { classroom: { name: "asc" } },
+    });
 
-  return NextResponse.json(assignments);
+    return NextResponse.json(assignments);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

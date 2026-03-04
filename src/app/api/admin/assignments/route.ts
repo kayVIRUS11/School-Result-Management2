@@ -8,16 +8,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const assignments = await prisma.staffAssignment.findMany({
-    include: {
-      staff: { include: { user: true } },
-      classroom: true,
-      subject: true,
-    },
-    orderBy: { classroom: { name: "asc" } },
-  });
+  try {
+    const assignments = await prisma.staffAssignment.findMany({
+      include: {
+        staff: { include: { user: true } },
+        classroom: true,
+        subject: true,
+      },
+      orderBy: { classroom: { name: "asc" } },
+    });
 
-  return NextResponse.json(assignments);
+    return NextResponse.json(assignments);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -26,16 +31,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { staffId, classId, subjectId } = await req.json();
+  try {
+    const { staffId, classId, subjectId } = await req.json();
 
-  const assignment = await prisma.staffAssignment.create({
-    data: { staffId, classId, subjectId: subjectId ?? null },
-    include: {
-      staff: { include: { user: true } },
-      classroom: true,
-      subject: true,
-    },
-  });
+    if (!staffId || !classId) {
+      return NextResponse.json({ error: "staffId and classId are required" }, { status: 400 });
+    }
 
-  return NextResponse.json(assignment, { status: 201 });
+    const assignment = await prisma.staffAssignment.create({
+      data: { staffId, classId, subjectId: subjectId ?? null },
+      include: {
+        staff: { include: { user: true } },
+        classroom: true,
+        subject: true,
+      },
+    });
+
+    return NextResponse.json(assignment, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

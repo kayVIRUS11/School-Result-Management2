@@ -8,14 +8,23 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, level } = await req.json();
+  try {
+    const { name, level } = await req.json();
 
-  const classroom = await prisma.classRoom.update({
-    where: { id: params.id },
-    data: { name, level },
-  });
+    if (!name || !level) {
+      return NextResponse.json({ error: "Name and level are required" }, { status: 400 });
+    }
 
-  return NextResponse.json(classroom);
+    const classroom = await prisma.classRoom.update({
+      where: { id: params.id },
+      data: { name, level },
+    });
+
+    return NextResponse.json(classroom);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -24,7 +33,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.classRoom.delete({ where: { id: params.id } });
+  try {
+    await prisma.classRoom.delete({ where: { id: params.id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

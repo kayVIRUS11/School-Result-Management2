@@ -8,32 +8,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const classId = searchParams.get("classId") || undefined;
-  const subjectId = searchParams.get("subjectId") || undefined;
-  const staffId = searchParams.get("staffId") || undefined;
+  try {
+    const { searchParams } = new URL(req.url);
+    const classId = searchParams.get("classId") || undefined;
+    const subjectId = searchParams.get("subjectId") || undefined;
+    const staffId = searchParams.get("staffId") || undefined;
 
-  const where: {
-    status: "SUBMITTED";
-    classId?: string;
-    subjectId?: string;
-    staffId?: string;
-  } = { status: "SUBMITTED" };
-  if (classId) where.classId = classId;
-  if (subjectId) where.subjectId = subjectId;
-  if (staffId) where.staffId = staffId;
+    const where: {
+      status: "SUBMITTED";
+      classId?: string;
+      subjectId?: string;
+      staffId?: string;
+    } = { status: "SUBMITTED" };
+    if (classId) where.classId = classId;
+    if (subjectId) where.subjectId = subjectId;
+    if (staffId) where.staffId = staffId;
 
-  const results = await prisma.result.findMany({
-    where,
-    include: {
-      student: { include: { user: true } },
-      subject: true,
-      classroom: true,
-      term: true,
-      staff: { include: { user: true } },
-    },
-    orderBy: [{ classroom: { name: "asc" } }, { subject: { name: "asc" } }, { createdAt: "desc" }],
-  });
+    const results = await prisma.result.findMany({
+      where,
+      include: {
+        student: { include: { user: true } },
+        subject: true,
+        classroom: true,
+        term: true,
+        staff: { include: { user: true } },
+      },
+      orderBy: [{ classroom: { name: "asc" } }, { subject: { name: "asc" } }, { createdAt: "desc" }],
+    });
 
-  return NextResponse.json(results);
+    return NextResponse.json(results);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

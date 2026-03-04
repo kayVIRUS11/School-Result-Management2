@@ -8,15 +8,20 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const classes = await prisma.classRoom.findMany({
-    include: {
-      _count: { select: { students: true } },
-      classSubjects: { include: { subject: true } },
-    },
-    orderBy: { name: "asc" },
-  });
+  try {
+    const classes = await prisma.classRoom.findMany({
+      include: {
+        _count: { select: { students: true } },
+        classSubjects: { include: { subject: true } },
+      },
+      orderBy: { name: "asc" },
+    });
 
-  return NextResponse.json(classes);
+    return NextResponse.json(classes);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -25,9 +30,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, level } = await req.json();
+  try {
+    const { name, level } = await req.json();
 
-  const classroom = await prisma.classRoom.create({ data: { name, level } });
+    if (!name || !level) {
+      return NextResponse.json({ error: "Name and level are required" }, { status: 400 });
+    }
 
-  return NextResponse.json(classroom, { status: 201 });
+    const classroom = await prisma.classRoom.create({ data: { name, level } });
+
+    return NextResponse.json(classroom, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

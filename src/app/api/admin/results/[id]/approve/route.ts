@@ -8,10 +8,15 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.result.update({
-    where: { id: params.id },
-    data: { status: "APPROVED" },
-  });
+  try {
+    await prisma.result.update({
+      where: { id: params.id },
+      data: { status: "APPROVED" },
+    });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

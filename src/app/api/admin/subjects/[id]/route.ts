@@ -8,14 +8,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, code } = await req.json();
+  try {
+    const { name, code } = await req.json();
 
-  const subject = await prisma.subject.update({
-    where: { id: params.id },
-    data: { name, code },
-  });
+    const subject = await prisma.subject.update({
+      where: { id: params.id },
+      data: { name, code },
+    });
 
-  return NextResponse.json(subject);
+    return NextResponse.json(subject);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -24,7 +29,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.subject.delete({ where: { id: params.id } });
+  try {
+    await prisma.subject.delete({ where: { id: params.id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

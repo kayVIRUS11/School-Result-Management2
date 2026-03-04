@@ -8,11 +8,16 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessions = await prisma.academicSession.findMany({
-    orderBy: { name: "desc" },
-  });
+  try {
+    const sessions = await prisma.academicSession.findMany({
+      orderBy: { name: "desc" },
+    });
 
-  return NextResponse.json(sessions);
+    return NextResponse.json(sessions);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -21,15 +26,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, isCurrent } = await req.json();
+  try {
+    const { name, isCurrent } = await req.json();
 
-  if (isCurrent) {
-    await prisma.academicSession.updateMany({ data: { isCurrent: false } });
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    if (isCurrent) {
+      await prisma.academicSession.updateMany({ data: { isCurrent: false } });
+    }
+
+    const academicSession = await prisma.academicSession.create({
+      data: { name, isCurrent: isCurrent ?? false },
+    });
+
+    return NextResponse.json(academicSession, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const academicSession = await prisma.academicSession.create({
-    data: { name, isCurrent: isCurrent ?? false },
-  });
-
-  return NextResponse.json(academicSession, { status: 201 });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { ClipboardList, Save, Send } from "lucide-react";
 import { Toaster, toast } from "react-hot-toast";
 
@@ -74,6 +74,7 @@ export default function EnterResultsPage() {
   const [scores, setScores] = useState<ScoreRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -88,68 +89,74 @@ export default function EnterResultsPage() {
     });
   }, []);
 
-  const loadStudentsAndResults = useCallback(async () => {
+  // Effect 1: When assignment changes, manage class subjects list and reset state
+  useEffect(() => {
+    if (!selectedAssignment || !currentTerm) {
+      setScores([]);
+      setClassSubjects([]);
+      setSelectedSubjectId("");
+      return;
+    }
+    const assignment = assignments.find((a) => a.id === selectedAssignment);
+    if (!assignment) return;
+
+    if (!assignment.subjectId) {
+      // "All Subjects" assignment — fetch the subject dropdown options
+      fetch(`/api/staff/classes/${assignment.classId}/subjects`)
+        .then((r) => r.json())
+        .then((data) => {
+          setClassSubjects(Array.isArray(data) ? data : []);
+        });
+      setSelectedSubjectId("");
+      setScores([]);
+    } else {
+      // Specific-subject assignment — clear the subject picker
+      setClassSubjects([]);
+      setSelectedSubjectId("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssignment, currentTerm]);
+
+  // Effect 2: Load students and results when the effective subject is known
+  useEffect(() => {
     if (!selectedAssignment || !currentTerm) return;
     const assignment = assignments.find((a) => a.id === selectedAssignment);
     if (!assignment) return;
 
     const effectiveSubjectId = assignment.subjectId ?? selectedSubjectId;
-    if (!assignment.subjectId && !selectedSubjectId) return;
+    if (!effectiveSubjectId) return;
 
-    setLoadingStudents(true);
-    try {
-      const [studentsData, existingResults] = await Promise.all([
-        fetch(`/api/staff/classes/${assignment.classId}/students`).then((r) => r.json()),
-        fetch(
-          `/api/staff/results?classId=${assignment.classId}&subjectId=${effectiveSubjectId}&termId=${currentTerm.id}`
-        ).then((r) => r.json()),
-      ]);
+    (async () => {
+      setLoadingStudents(true);
+      try {
+        const [studentsData, existingResults] = await Promise.all([
+          fetch(`/api/staff/classes/${assignment.classId}/students`).then((r) => r.json()),
+          fetch(
+            `/api/staff/results?classId=${assignment.classId}&subjectId=${effectiveSubjectId}&termId=${currentTerm.id}`
+          ).then((r) => r.json()),
+        ]);
 
-      const rows: ScoreRow[] = studentsData.map((s: Student) => {
-        const existing = existingResults.find(
-          (r: { studentId: string; ca1: number; ca2: number; ca3: number; exam: number }) => r.studentId === s.id
-        );
-        return {
-          studentId: s.id,
-          studentName: `${s.user.firstName} ${s.user.lastName}`,
-          regNumber: s.regNumber,
-          ca1: existing ? String(existing.ca1) : "",
-          ca2: existing ? String(existing.ca2) : "",
-          ca3: existing ? String(existing.ca3) : "",
-          exam: existing ? String(existing.exam) : "",
-        };
-      });
-      setScores(rows);
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, [selectedAssignment, selectedSubjectId, currentTerm, assignments]);
-
-  useEffect(() => {
-    if (selectedAssignment && currentTerm) {
-      const assignment = assignments.find((a) => a.id === selectedAssignment);
-      if (assignment && !assignment.subjectId) {
-        // Load subjects for this class
-        fetch(`/api/staff/classes/${assignment.classId}/subjects`)
-          .then((r) => r.json())
-          .then(setClassSubjects);
-        setSelectedSubjectId("");
-        setScores([]);
-      } else {
-        setClassSubjects([]);
-        setSelectedSubjectId("");
-        loadStudentsAndResults();
+        const rows: ScoreRow[] = studentsData.map((s: Student) => {
+          const existing = existingResults.find(
+            (r: { studentId: string; ca1: number; ca2: number; ca3: number; exam: number }) => r.studentId === s.id
+          );
+          return {
+            studentId: s.id,
+            studentName: `${s.user.firstName} ${s.user.lastName}`,
+            regNumber: s.regNumber,
+            ca1: existing ? String(existing.ca1) : "",
+            ca2: existing ? String(existing.ca2) : "",
+            ca3: existing ? String(existing.ca3) : "",
+            exam: existing ? String(existing.exam) : "",
+          };
+        });
+        setScores(rows);
+      } finally {
+        setLoadingStudents(false);
       }
-    } else {
-      setScores([]);
-    }
-  }, [selectedAssignment, currentTerm, assignments, loadStudentsAndResults]);
-
-  useEffect(() => {
-    if (selectedSubjectId) {
-      loadStudentsAndResults();
-    }
-  }, [selectedSubjectId, loadStudentsAndResults]);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssignment, selectedSubjectId, currentTerm, reloadTrigger]);
 
   function updateScore(index: number, field: keyof ScoreRow, value: string) {
     setScores((prev) => {
@@ -194,7 +201,7 @@ export default function EnterResultsPage() {
 
       if (res.ok) {
         toast.success(status === "DRAFT" ? "Saved as draft" : "Submitted for approval");
-        await loadStudentsAndResults();
+        setReloadTrigger((t) => t + 1);
       } else {
         const data = await res.json();
         toast.error(data.error || "Failed to save results");
@@ -260,21 +267,25 @@ export default function EnterResultsPage() {
           </div>
         </div>
 
-        {assignment && !assignment.subjectId && classSubjects.length > 0 && (
+        {assignment && !assignment.subjectId && (
           <div className="mt-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-            <select
-              value={selectedSubjectId}
-              onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="">Select subject...</option>
-              {classSubjects.map((cs) => (
-                <option key={cs.id} value={cs.subject.id}>
-                  {cs.subject.name}
-                </option>
-              ))}
-            </select>
+            {classSubjects.length > 0 ? (
+              <select
+                value={selectedSubjectId}
+                onChange={(e) => setSelectedSubjectId(e.target.value)}
+                className="w-full sm:w-1/2 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">Select subject...</option>
+                {classSubjects.map((cs) => (
+                  <option key={cs.id} value={cs.subject.id}>
+                    {cs.subject.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="text-sm text-gray-500">Loading subjects...</p>
+            )}
           </div>
         )}
       </div>
@@ -372,7 +383,11 @@ export default function EnterResultsPage() {
       {!loadingStudents && selectedAssignment && scores.length === 0 && (
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
           <ClipboardList className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500">No students found in this class.</p>
+          <p className="text-gray-500">
+            {assignment && !assignment.subjectId && !selectedSubjectId
+              ? "Select a subject above to enter results."
+              : "No students found in this class."}
+          </p>
         </div>
       )}
 
