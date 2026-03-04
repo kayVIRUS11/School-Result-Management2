@@ -8,22 +8,27 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, sessionId, isCurrent } = await req.json();
+  try {
+    const { name, sessionId, isCurrent } = await req.json();
 
-  if (isCurrent) {
-    await prisma.term.updateMany({
-      where: { id: { not: params.id } },
-      data: { isCurrent: false },
+    if (isCurrent) {
+      await prisma.term.updateMany({
+        where: { id: { not: params.id } },
+        data: { isCurrent: false },
+      });
+    }
+
+    const term = await prisma.term.update({
+      where: { id: params.id },
+      data: { name, sessionId, isCurrent: isCurrent ?? false },
+      include: { session: true },
     });
+
+    return NextResponse.json(term);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const term = await prisma.term.update({
-    where: { id: params.id },
-    data: { name, sessionId, isCurrent: isCurrent ?? false },
-    include: { session: true },
-  });
-
-  return NextResponse.json(term);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -32,7 +37,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.term.delete({ where: { id: params.id } });
+  try {
+    await prisma.term.delete({ where: { id: params.id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

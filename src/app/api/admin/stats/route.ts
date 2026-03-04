@@ -8,12 +8,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [studentCount, staffCount, pendingCount, approvedCount] = await Promise.all([
-    prisma.student.count(),
-    prisma.staff.count(),
-    prisma.result.count({ where: { status: "SUBMITTED" } }),
-    prisma.result.count({ where: { status: "APPROVED" } }),
-  ]);
+  try {
+    const [studentCount, staffCount, pendingCount, approvedCount] = await Promise.all([
+      prisma.student.count(),
+      prisma.staff.count(),
+      prisma.result.count({ where: { status: "SUBMITTED" } }),
+      prisma.result.count({ where: { status: "APPROVED" } }),
+    ]);
 
-  return NextResponse.json({ studentCount, staffCount, pendingCount, approvedCount });
+    return NextResponse.json({ studentCount, staffCount, pendingCount, approvedCount });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

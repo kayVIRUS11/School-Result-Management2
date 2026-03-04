@@ -8,12 +8,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const subjects = await prisma.subject.findMany({
-    include: { _count: { select: { classSubjects: true } } },
-    orderBy: { name: "asc" },
-  });
+  try {
+    const subjects = await prisma.subject.findMany({
+      include: { _count: { select: { classSubjects: true } } },
+      orderBy: { name: "asc" },
+    });
 
-  return NextResponse.json(subjects);
+    return NextResponse.json(subjects);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -22,9 +27,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { name, code } = await req.json();
+  try {
+    const { name, code } = await req.json();
 
-  const subject = await prisma.subject.create({ data: { name, code } });
+    if (!name || !code) {
+      return NextResponse.json({ error: "Name and code are required" }, { status: 400 });
+    }
 
-  return NextResponse.json(subject, { status: 201 });
+    const subject = await prisma.subject.create({ data: { name, code } });
+
+    return NextResponse.json(subject, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

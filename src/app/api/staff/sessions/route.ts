@@ -8,10 +8,15 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const sessions = await prisma.academicSession.findMany({
-    include: { terms: true },
-    orderBy: { name: "desc" },
-  });
+  try {
+    const sessions = await prisma.academicSession.findMany({
+      include: { terms: true },
+      orderBy: { name: "desc" },
+    });
 
-  return NextResponse.json(sessions);
+    return NextResponse.json(sessions);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

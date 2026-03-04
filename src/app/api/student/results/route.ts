@@ -8,27 +8,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
-  if (!student) return NextResponse.json([]);
+  try {
+    const student = await prisma.student.findFirst({ where: { userId: session.user.id } });
+    if (!student) return NextResponse.json([]);
 
-  const { searchParams } = new URL(req.url);
-  const termId = searchParams.get("termId") ?? undefined;
-  const sessionId = searchParams.get("sessionId") ?? undefined;
+    const { searchParams } = new URL(req.url);
+    const termId = searchParams.get("termId") ?? undefined;
+    const sessionId = searchParams.get("sessionId") ?? undefined;
 
-  const results = await prisma.result.findMany({
-    where: {
-      studentId: student.id,
-      status: "APPROVED",
-      ...(termId ? { termId } : {}),
-      ...(sessionId ? { sessionId } : {}),
-    },
-    include: {
-      subject: true,
-      term: true,
-      session: true,
-    },
-    orderBy: { subject: { name: "asc" } },
-  });
+    const results = await prisma.result.findMany({
+      where: {
+        studentId: student.id,
+        status: "APPROVED",
+        ...(termId ? { termId } : {}),
+        ...(sessionId ? { sessionId } : {}),
+      },
+      include: {
+        subject: true,
+        term: true,
+        session: true,
+      },
+      orderBy: { subject: { name: "asc" } },
+    });
 
-  return NextResponse.json(results);
+    return NextResponse.json(results);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

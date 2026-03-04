@@ -8,28 +8,33 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { firstName, lastName } = await req.json();
+  try {
+    const { firstName, lastName } = await req.json();
 
-  const staff = await prisma.staff.findUnique({
-    where: { id: params.id },
-    include: { user: true },
-  });
+    const staff = await prisma.staff.findUnique({
+      where: { id: params.id },
+      include: { user: true },
+    });
 
-  if (!staff) {
-    return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    if (!staff) {
+      return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    }
+
+    await prisma.user.update({
+      where: { id: staff.userId },
+      data: { firstName, lastName },
+    });
+
+    const updated = await prisma.staff.findUnique({
+      where: { id: params.id },
+      include: { user: true },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  await prisma.user.update({
-    where: { id: staff.userId },
-    data: { firstName, lastName },
-  });
-
-  const updated = await prisma.staff.findUnique({
-    where: { id: params.id },
-    include: { user: true },
-  });
-
-  return NextResponse.json(updated);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
@@ -38,13 +43,18 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const staff = await prisma.staff.findUnique({ where: { id: params.id } });
+  try {
+    const staff = await prisma.staff.findUnique({ where: { id: params.id } });
 
-  if (!staff) {
-    return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    if (!staff) {
+      return NextResponse.json({ error: "Staff not found" }, { status: 404 });
+    }
+
+    await prisma.user.delete({ where: { id: staff.userId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  await prisma.user.delete({ where: { id: staff.userId } });
-
-  return NextResponse.json({ success: true });
 }

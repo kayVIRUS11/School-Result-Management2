@@ -9,12 +9,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const students = await prisma.student.findMany({
-    include: { user: true, classroom: true },
-    orderBy: { regNumber: "asc" },
-  });
+  try {
+    const students = await prisma.student.findMany({
+      include: { user: true, classroom: true },
+      orderBy: { regNumber: "asc" },
+    });
 
-  return NextResponse.json(students);
+    return NextResponse.json(students);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -23,20 +28,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { regNumber, firstName, lastName, classId, guardianName, guardianPhone } = await req.json();
+  try {
+    const { regNumber, firstName, lastName, classId, guardianName, guardianPhone } = await req.json();
 
-  const generatedPassword = generatePassword();
-  const passwordHash = await hashPassword(generatedPassword);
-  const username = regNumber.toLowerCase();
+    if (!regNumber || !firstName || !lastName || !classId) {
+      return NextResponse.json({ error: "regNumber, firstName, lastName, and classId are required" }, { status: 400 });
+    }
 
-  const user = await prisma.user.create({
-    data: { role: "STUDENT", username, passwordHash, firstName, lastName },
-  });
+    const generatedPassword = generatePassword();
+    const passwordHash = await hashPassword(generatedPassword);
+    const username = regNumber.toLowerCase();
 
-  const student = await prisma.student.create({
-    data: { userId: user.id, regNumber, classId, guardianName, guardianPhone },
-    include: { user: true, classroom: true },
-  });
+    const user = await prisma.user.create({
+      data: { role: "STUDENT", username, passwordHash, firstName, lastName },
+    });
 
-  return NextResponse.json({ student, generatedPassword }, { status: 201 });
+    const student = await prisma.student.create({
+      data: { userId: user.id, regNumber, classId, guardianName, guardianPhone },
+      include: { user: true, classroom: true },
+    });
+
+    return NextResponse.json({ student, generatedPassword }, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

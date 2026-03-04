@@ -8,7 +8,12 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await prisma.staffAssignment.delete({ where: { id: params.id } });
+  try {
+    await prisma.staffAssignment.delete({ where: { id: params.id } });
 
-  return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

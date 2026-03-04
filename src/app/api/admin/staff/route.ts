@@ -9,12 +9,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const staff = await prisma.staff.findMany({
-    include: { user: true },
-    orderBy: { staffIdNumber: "asc" },
-  });
+  try {
+    const staff = await prisma.staff.findMany({
+      include: { user: true },
+      orderBy: { staffIdNumber: "asc" },
+    });
 
-  return NextResponse.json(staff);
+    return NextResponse.json(staff);
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -23,20 +28,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { staffIdNumber, firstName, lastName } = await req.json();
+  try {
+    const { staffIdNumber, firstName, lastName } = await req.json();
 
-  const generatedPassword = generatePassword();
-  const passwordHash = await hashPassword(generatedPassword);
-  const username = staffIdNumber.toLowerCase();
+    if (!staffIdNumber || !firstName || !lastName) {
+      return NextResponse.json({ error: "staffIdNumber, firstName, and lastName are required" }, { status: 400 });
+    }
 
-  const user = await prisma.user.create({
-    data: { role: "STAFF", username, passwordHash, firstName, lastName },
-  });
+    const generatedPassword = generatePassword();
+    const passwordHash = await hashPassword(generatedPassword);
+    const username = staffIdNumber.toLowerCase();
 
-  const staff = await prisma.staff.create({
-    data: { userId: user.id, staffIdNumber },
-    include: { user: true },
-  });
+    const user = await prisma.user.create({
+      data: { role: "STAFF", username, passwordHash, firstName, lastName },
+    });
 
-  return NextResponse.json({ staff, generatedPassword }, { status: 201 });
+    const staff = await prisma.staff.create({
+      data: { userId: user.id, staffIdNumber },
+      include: { user: true },
+    });
+
+    return NextResponse.json({ staff, generatedPassword }, { status: 201 });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

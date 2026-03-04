@@ -14,8 +14,6 @@ interface ClassRoom {
   classSubjects: Array<{ subject: { id: string; name: string } }>;
 }
 
-const LEVELS = ["JSS1", "JSS2", "JSS3", "SS1", "SS2", "SS3"];
-
 export default function ClassesPage() {
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -27,6 +25,8 @@ export default function ClassesPage() {
   const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", level: "" });
   const [loading, setLoading] = useState(false);
+
+  const existingLevels = Array.from(new Set(classes.map((c) => c.level))).sort();
 
   const load = () => {
     fetch("/api/admin/classes").then(r => r.json()).then(setClasses);
@@ -113,10 +113,16 @@ export default function ClassesPage() {
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">Level *</label>
-        <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-          <option value="">Select level</option>
-          {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-        </select>
+        <input
+          list="level-options"
+          value={form.level}
+          onChange={e => setForm(f => ({ ...f, level: e.target.value }))}
+          placeholder="e.g. JSS1, SS1, Nursery, Primary 1..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+        <datalist id="level-options">
+          {existingLevels.map(l => <option key={l} value={l} />)}
+        </datalist>
       </div>
     </div>
   );
