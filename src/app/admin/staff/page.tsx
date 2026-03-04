@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, KeyRound, Search, UserCog } from "lucide-react";
+import { Plus, Pencil, Trash2, KeyRound, Search, UserCog, FileUp } from "lucide-react";
 import Modal from "@/components/Modal";
 import { Toaster, toast } from "react-hot-toast";
+import Link from "next/link";
 
 interface Staff {
   id: string;
@@ -89,9 +90,14 @@ export default function StaffPage() {
           <UserCog className="w-6 h-6 text-indigo-600" />
           <h1 className="text-2xl font-bold text-gray-900">Staff</h1>
         </div>
-        <button onClick={() => { setForm({ staffIdNumber: "", firstName: "", lastName: "" }); setShowAdd(true); }} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
-          <Plus className="w-4 h-4" /> Add Staff
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/staff/import" className="flex items-center gap-2 border border-indigo-600 text-indigo-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-50 transition-colors">
+            <FileUp className="w-4 h-4" /> Import CSV
+          </Link>
+          <button onClick={() => { setForm({ staffIdNumber: "", firstName: "", lastName: "" }); setShowAdd(true); }} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+            <Plus className="w-4 h-4" /> Add Staff
+          </button>
+        </div>
       </div>
 
       <div className="mb-4">
